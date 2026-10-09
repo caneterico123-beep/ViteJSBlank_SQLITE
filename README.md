@@ -44,8 +44,31 @@ All request and response bodies are JSON. State-changing requests require a sess
 - `GET /api/me`: returns the current sanitized user or `401`.
 - `POST /api/logout`: invalidates the session and clears its cookie.
 - `GET /api/csrf`: starts/continues the session and issues the token used by the frontend.
+- `GET /api/dashboard/stats`: admin-only aggregate counts from SQLite.
+- `GET /api/dashboard/registrations`: admin-only daily registration counts for the last 30 days.
+- `GET /api/users?page=1&per_page=10&search=`: admin-only sanitized, searchable, paginated directory.
+- `GET|PUT /api/profile`: read or update only the authenticated user's name and email.
+- `GET|PUT /api/settings`: read or update only the authenticated user's theme and email-notification preference.
 
-Login sessions expire after 30 minutes of inactivity; “Remember me” extends the absolute session lifetime and cookie to 30 days. Login and registration have per-IP SQLite rate limits. Passwords use `password_hash()` and are verified with `password_verify()`; they are never returned to the frontend or stored in browser storage.
+Login sessions expire after 30 minutes of inactivity; “Remember me” extends the absolute session lifetime and cookie to 30 days. Login and registration have per-IP SQLite rate limits. The `Active users` count means accounts with a login in the past 30 days; `New registrations` counts the past 7 days. Passwords use `password_hash()` and are verified with `password_verify()`; they are never returned to the frontend or stored in browser storage.
+
+## Roles and Dashboard
+
+Every registration, including the first one, receives the `user` role. The React route guard hides the Users view from regular users, and the PHP API independently returns `403` for admin-only stats, analytics, and directory endpoints. Profile updates ignore role fields.
+
+Promote an existing user only from a trusted server terminal, after registration:
+
+```powershell
+php backend/scripts/promote_admin.php admin@example.com
+```
+
+Revoke administrator privileges using the same CLI-only script:
+
+```powershell
+php backend/scripts/promote_admin.php --revoke admin@example.com
+```
+
+The dashboard chart and stat cards use database values, not placeholder analytics. The recent-users table exposes IDs, names, emails, roles/status derived from login activity, and registration dates only; it never selects password hashes.
 
 ## API Tests
 
@@ -55,7 +78,7 @@ Keep the PHP server running in Terminal 1, then run from the repository root:
 npm run test:api
 ```
 
-The script uses an isolated cookie jar and covers registration, validation, duplicate email, generic login errors, login, session lookup, CSRF rejection, logout, and unauthenticated access. Set `AUTH_TEST_BASE_URL` to use a different test server URL.
+The script uses an isolated cookie jar and covers registration, validation, duplicate email, generic login errors, role defaults/escalation prevention, profile/settings ownership, regular/admin endpoint authorization, sanitized stats/users, login, session lookup, CSRF rejection, logout, and unauthenticated access. It temporarily elevates only its generated test account for admin endpoint assertions and restores it to `user` in a `finally` block. Set `AUTH_TEST_BASE_URL` to use a different test server URL and `AUTH_TEST_EMAIL` to pin the test account email.
 
 ## Security and Deployment
 

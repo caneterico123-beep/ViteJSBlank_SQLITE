@@ -44,6 +44,8 @@ try {
         'password' => password_hash($password, PASSWORD_DEFAULT),
     ]);
     $userId = (int) $pdo->lastInsertId();
+    $settings = $pdo->prepare('INSERT INTO user_settings (user_id) VALUES (:user_id)');
+    $settings->execute(['user_id' => $userId]);
     $pdo->commit();
 } catch (PDOException $error) {
     if ($pdo->inTransaction()) {
@@ -55,9 +57,17 @@ try {
     throw $error;
 }
 
-$query = $pdo->prepare('SELECT id, name, email, created_at FROM users WHERE id = :id');
+$query = $pdo->prepare('SELECT id, name, email, role, created_at FROM users WHERE id = :id');
 $query->execute(['id' => $userId]);
+$user = $query->fetch();
+session_regenerate_id(true);
+$now = time();
+$_SESSION['user_id'] = $userId;
+$_SESSION['last_activity'] = $now;
+$_SESSION['auth_expires_at'] = $now + 1800;
+$csrfToken = new_csrf_token();
 json_response(201, [
-    'message' => 'Account created. You can now sign in.',
-    'user' => $query->fetch(),
+    'message' => 'Account created successfully.',
+    'user' => $user,
+    'csrfToken' => $csrfToken,
 ]);

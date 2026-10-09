@@ -1,5 +1,5 @@
 import { LoaderCircle } from 'lucide-react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Navigate, Outlet, useOutletContext } from 'react-router-dom'
 import { useAuth } from '../contexts/useAuth.js'
 
 function RouteLoading() {
@@ -20,4 +20,17 @@ export function GuestRoute() {
   const { user, isLoading } = useAuth()
   if (isLoading) return <RouteLoading />
   return user ? <Navigate to="/dashboard" replace /> : <Outlet />
+}
+
+export function AdminRoute() {
+  const { user, isLoading } = useAuth()
+  const outletContext = useOutletContext()
+  if (isLoading) return <RouteLoading />
+  return user?.role === 'admin' ? <Outlet context={outletContext} /> : <Navigate to="/dashboard" replace />
+}
+
+export function CashierRoute() {
+  const { user, isLoading } = useAuth()
+  if (isLoading) return <RouteLoading />
+  return ['cashier', 'admin'].includes(user?.role) ? <Outlet /> : <Navigate to="/dashboard" replace />
 }

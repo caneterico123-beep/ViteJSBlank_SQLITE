@@ -63,7 +63,7 @@ try {
     $anonymous = api_request($baseUrl, $cookieJar, 'GET', '/api/me');
     expect($anonymous['status'] === 401, 'reject unauthenticated session lookup');
 
-    $email = 'auth-test-' . bin2hex(random_bytes(6)) . '@example.test';
+    $email = getenv('AUTH_TEST_EMAIL') ?: 'auth-test-' . bin2hex(random_bytes(6)) . '@example.test';
     $invalid = api_request($baseUrl, $cookieJar, 'POST', '/api/register', [
         'name' => '',
         'email' => 'not-an-email',
@@ -81,6 +81,48 @@ try {
     $registered = api_request($baseUrl, $cookieJar, 'POST', '/api/register', $account, $csrfToken);
     expect($registered['status'] === 201, 'register a new account');
     expect(!isset($registered['body']['user']['password']), 'never return a password hash');
+    $csrfToken = $registered['body']['csrfToken'];
+    expect($registered['body']['user']['role'] === 'user', 'new accounts are never administrators');
+
+    $profile = api_request($baseUrl, $cookieJar, 'GET', '/api/profile');
+    expect($profile['status'] === 200 && $profile['body']['profile']['email'] === $email, 'read the current user profile');
+    $profileUpdate = api_request($baseUrl, $cookieJar, 'PUT', '/api/profile', [
+        'name' => 'Updated Test Account',
+        'email' => $email,
+        'role' => 'admin',
+    ], $csrfToken);
+    expect($profileUpdate['status'] === 200 && $profileUpdate['body']['profile']['role'] === 'user', 'profile updates cannot grant administrator role');
+
+    $settings = api_request($baseUrl, $cookieJar, 'GET', '/api/settings');
+    expect($settings['status'] === 200 && $settings['body']['settings']['theme'] === 'system', 'load default account settings');
+    $settingsUpdate = api_request($baseUrl, $cookieJar, 'PUT', '/api/settings', [
+        'theme' => 'light',
+        'email_notifications' => false,
+    ], $csrfToken);
+    expect($settingsUpdate['status'] === 200 && $settingsUpdate['body']['settings']['email_notifications'] === false, 'update own settings');
+
+    $adminStats = api_request($baseUrl, $cookieJar, 'GET', '/api/dashboard/stats');
+    $adminAnalytics = api_request($baseUrl, $cookieJar, 'GET', '/api/dashboard/registrations');
+    $adminUsers = api_request($baseUrl, $cookieJar, 'GET', '/api/users');
+    expect($adminStats['status'] === 403 && $adminAnalytics['status'] === 403 && $adminUsers['status'] === 403, 'deny administrator endpoints to regular users');
+
+    require_once __DIR__ . '/../config/database.php';
+    $testDatabase = database_connection();
+    try {
+        $promoteTestUser = $testDatabase->prepare("UPDATE users SET role = 'admin' WHERE email = :email");
+        $promoteTestUser->execute(['email' => $email]);
+
+        $adminStats = api_request($baseUrl, $cookieJar, 'GET', '/api/dashboard/stats');
+        $adminAnalytics = api_request($baseUrl, $cookieJar, 'GET', '/api/dashboard/registrations');
+        $adminUsers = api_request($baseUrl, $cookieJar, 'GET', '/api/users?page=1&per_page=5&search=Test');
+        expect($adminStats['status'] === 200 && $adminStats['body']['stats']['totalUsers'] > 0, 'return database-backed admin statistics');
+        expect($adminAnalytics['status'] === 200 && count($adminAnalytics['body']['registrations']) === 30, 'return 30 days of registration analytics');
+        expect($adminUsers['status'] === 200 && $adminUsers['body']['pagination']['total'] > 0, 'search and paginate users for administrators');
+        expect(!isset($adminUsers['body']['users'][0]['password']), 'never expose credentials in user listings');
+    } finally {
+        $restoreTestUser = $testDatabase->prepare("UPDATE users SET role = 'user' WHERE email = :email");
+        $restoreTestUser->execute(['email' => $email]);
+    }
 
     $duplicate = api_request($baseUrl, $cookieJar, 'POST', '/api/register', $account, $csrfToken);
     expect($duplicate['status'] === 409, 'reject duplicate email addresses');

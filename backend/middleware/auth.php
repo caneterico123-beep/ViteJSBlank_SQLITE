@@ -13,7 +13,7 @@ function require_authenticated_user(PDO $pdo): array
         json_response(401, ['message' => 'Authentication required.']);
     }
 
-    $query = $pdo->prepare('SELECT id, name, email, created_at FROM users WHERE id = :id');
+    $query = $pdo->prepare('SELECT id, name, email, role, created_at FROM users WHERE id = :id');
     $query->execute(['id' => $userId]);
     $user = $query->fetch();
 
@@ -23,5 +23,24 @@ function require_authenticated_user(PDO $pdo): array
     }
 
     $_SESSION['last_activity'] = time();
+    return $user;
+}
+
+function require_admin(PDO $pdo): array
+{
+    return require_role($pdo, ['admin']);
+}
+
+function require_pos_operator(PDO $pdo): array
+{
+    return require_role($pdo, ['cashier', 'admin']);
+}
+
+function require_role(PDO $pdo, array $roles): array
+{
+    $user = require_authenticated_user($pdo);
+    if (!in_array($user['role'], $roles, true)) {
+        json_response(403, ['message' => 'Administrator access is required.']);
+    }
     return $user;
 }

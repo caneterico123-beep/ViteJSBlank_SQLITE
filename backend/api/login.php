@@ -22,7 +22,7 @@ if ($errors !== []) {
     json_response(422, ['message' => 'Please correct the highlighted fields.', 'errors' => $errors]);
 }
 
-$query = $pdo->prepare('SELECT id, name, email, password, created_at FROM users WHERE email = :email');
+$query = $pdo->prepare('SELECT id, name, email, password, role, created_at FROM users WHERE email = :email');
 $query->execute(['email' => $email]);
 $record = $query->fetch();
 
@@ -42,6 +42,8 @@ $rememberMe = is_bool($rememberInput)
     ? $rememberInput
     : (is_string($rememberInput) && filter_var($rememberInput, FILTER_VALIDATE_BOOL));
 $sessionLifetime = $rememberMe ? 2592000 : 1800;
+$lastLogin = $pdo->prepare('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = :id');
+$lastLogin->execute(['id' => $record['id']]);
 $_SESSION['user_id'] = (int) $record['id'];
 $_SESSION['last_activity'] = $now;
 $_SESSION['auth_expires_at'] = $now + $sessionLifetime;
@@ -55,6 +57,7 @@ json_response(200, [
         'id' => (int) $record['id'],
         'name' => $record['name'],
         'email' => $record['email'],
+        'role' => $record['role'],
         'created_at' => $record['created_at'],
     ],
     'csrfToken' => $csrfToken,

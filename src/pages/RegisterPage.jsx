@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Mail, UserRound } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout.jsx'
 import InputField from '../components/InputField.jsx'
 import LoadingButton from '../components/LoadingButton.jsx'
 import PasswordInput from '../components/PasswordInput.jsx'
+import { useAuth } from '../contexts/useAuth.js'
 import { register } from '../services/api.js'
 import { getPasswordStrength, isValidEmail } from '../utils/validation.js'
 
@@ -17,6 +18,8 @@ function RegisterPage() {
   const [errors, setErrors] = useState({})
   const [feedback, setFeedback] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { setUser } = useAuth()
+  const navigate = useNavigate()
   const strength = getPasswordStrength(password)
 
   function validate() {
@@ -53,7 +56,8 @@ function RegisterPage() {
         password,
         confirmPassword,
       })
-      setFeedback({ type: 'success', message: result.message || 'Your account has been created.' })
+      setUser(result.user)
+      navigate('/dashboard', { replace: true })
     } catch (error) {
       if (error.status === 422) {
         setErrors({

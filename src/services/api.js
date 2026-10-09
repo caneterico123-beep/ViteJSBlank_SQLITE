@@ -10,10 +10,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request(path, { method = 'GET', body, includeCsrf = true, retryCsrf = true } = {}) {
+async function request(path, { method = 'GET', body, headers: extraHeaders = {}, includeCsrf = true, retryCsrf = true } = {}) {
   if (method !== 'GET' && includeCsrf && !csrfToken) await getCsrfToken()
 
-  const headers = { Accept: 'application/json' }
+  const headers = { Accept: 'application/json', ...extraHeaders }
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   if (method !== 'GET' && includeCsrf) headers['X-CSRF-Token'] = csrfToken
 
@@ -81,4 +81,110 @@ export async function logout() {
   const result = await request('/api/logout', { method: 'POST', body: {} })
   csrfToken = ''
   return result
+}
+
+export function getDashboardStats() {
+  return request('/api/dashboard/stats')
+}
+
+export function getRegistrationAnalytics() {
+  return request('/api/dashboard/registrations')
+}
+
+export function getUsers({ page = 1, perPage = 10, search = '' } = {}) {
+  const params = new URLSearchParams({ page: String(page), per_page: String(perPage), search })
+  return request(`/api/users?${params.toString()}`)
+}
+
+export function getProfile() {
+  return request('/api/profile')
+}
+
+export function updateProfile(profile) {
+  return request('/api/profile', { method: 'PUT', body: profile })
+}
+
+export function getSettings() {
+  return request('/api/settings')
+}
+
+export function updateSettings(settings) {
+  return request('/api/settings', { method: 'PUT', body: settings })
+}
+
+export function getPosConfig() {
+  return request('/api/pos/config')
+}
+
+export function getProducts({ search = '', categoryId = '' } = {}) {
+  const params = new URLSearchParams()
+  if (search) params.set('search', search)
+  if (categoryId) params.set('category_id', String(categoryId))
+  return request(`/api/products${params.size ? `?${params.toString()}` : ''}`)
+}
+
+export function getCategories({ includeInactive = false } = {}) {
+  return request(`/api/categories${includeInactive ? '?include_inactive=1' : ''}`)
+}
+
+export function createCategory(name) {
+  return request('/api/categories', { method: 'POST', body: { name } })
+}
+
+export function updateCategory(id, name) {
+  return request(`/api/categories/${id}`, { method: 'PUT', body: { name } })
+}
+
+export function deactivateCategory(id) {
+  return request(`/api/categories/${id}`, { method: 'DELETE' })
+}
+
+export function createProduct(product) {
+  return request('/api/products', { method: 'POST', body: product })
+}
+
+export function updateProduct(id, product) {
+  return request(`/api/products/${id}`, { method: 'PUT', body: product })
+}
+
+export function deactivateProduct(id) {
+  return request(`/api/products/${id}`, { method: 'DELETE' })
+}
+
+export function getInventory(search = '') {
+  const query = search ? `?search=${encodeURIComponent(search)}` : ''
+  return request(`/api/inventory${query}`)
+}
+
+export function adjustInventory(adjustment) {
+  return request('/api/inventory/adjustments', { method: 'POST', body: adjustment })
+}
+
+export function checkoutSale(payload, idempotencyKey) {
+  return request('/api/pos/checkout', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: payload,
+  })
+}
+
+export function getTransactions({ page = 1, perPage = 20, search = '', dateFrom = '', dateTo = '', status = '', paymentMethod = '' } = {}) {
+  const params = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+    search,
+    date_from: dateFrom,
+    date_to: dateTo,
+    status,
+    payment_method: paymentMethod,
+  })
+  return request(`/api/pos/transactions?${params.toString()}`)
+}
+
+export function getTransaction(id) {
+  return request(`/api/pos/transactions/${id}`)
+}
+
+export function cancelTransaction(id, reason) {
+  return request(`/api/pos/transactions/${id}/cancel`, { method: 'POST', body: { reason } })
 }
