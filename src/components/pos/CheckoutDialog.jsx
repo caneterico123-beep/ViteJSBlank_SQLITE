@@ -15,12 +15,16 @@ function CheckoutDialog({ cart, config, isSubmitting, error, onConfirm, onCancel
   const [customerName, setCustomerName] = useState('')
   const subtotal = cart.reduce((sum, item) => sum + item.price_cents * item.quantity, 0)
   const discountNumber = Number(discount)
-  const discountBps = Number.isFinite(discountNumber) && discountNumber >= 0 ? Math.round(discountNumber * 100) : -1
+  const validDiscount = /^\d{1,3}(\.\d{1,2})?$/.test(discount)
+    && Number.isFinite(discountNumber)
+    && discountNumber >= 0
+    && discountNumber <= 100
+  const discountBps = validDiscount ? Math.round(discountNumber * 100) : -1
   const totals = calculateTotals(subtotal, Math.max(0, discountBps), config.taxBps)
   const receivedCents = amountToCents(amountReceived)
   const insufficientCash = paymentMethod === 'cash' && receivedCents !== null && receivedCents < totals.totalCents
-  const discountOverLimit = discountBps > config.discountMaxBps
-  const canConfirm = cart.length > 0 && !discountOverLimit && !insufficientCash
+  const discountOverLimit = validDiscount && discountBps > config.discountMaxBps
+  const canConfirm = cart.length > 0 && validDiscount && !discountOverLimit && !insufficientCash
     && (paymentMethod !== 'cash' || (receivedCents !== null && receivedCents >= totals.totalCents))
 
   async function handleSubmit(event) {
@@ -104,6 +108,7 @@ function CheckoutDialog({ cart, config, isSubmitting, error, onConfirm, onCancel
             <div className="flex justify-between border-t border-slate-100 pt-3 text-lg font-bold text-slate-950"><span>Total due</span><span className="tabular-nums">{formatMoney(totals.totalCents, config.currency)}</span></div>
           </div>
 
+          {!validDiscount && <p className="text-xs text-rose-700" role="alert">Enter a discount from 0 to 100 with up to two decimal places.</p>}
           {discountOverLimit && <p className="text-xs text-rose-700" role="alert">This discount exceeds your role limit.</p>}
           {insufficientCash && <p className="text-xs text-rose-700" role="alert">Cash received is less than the amount due.</p>}
           {paymentMethod === 'cash' && amountReceived !== '' && receivedCents === null && <p className="text-xs text-rose-700" role="alert">Enter a valid amount with up to two decimal places.</p>}

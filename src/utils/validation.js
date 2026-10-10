@@ -2,6 +2,11 @@ export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
 }
 
+export function isValidLoginIdentifier(value) {
+  const identifier = value.trim()
+  return isValidEmail(identifier) || /^[a-zA-Z0-9_.-]{3,32}$/.test(identifier)
+}
+
 export function getPasswordStrength(password) {
   const checks = [
     password.length >= 8,

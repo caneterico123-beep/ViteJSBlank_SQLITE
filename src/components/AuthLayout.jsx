@@ -7,7 +7,7 @@ function AuthLayout({ eyebrow, title, subtitle, children, wide = false }) {
       <div className="background-grid pointer-events-none absolute inset-0" aria-hidden="true" />
       <div className="background-glow pointer-events-none absolute" aria-hidden="true" />
 
-      <div className={`relative z-10 w-full ${wide ? 'max-w-[480px]' : 'max-w-[440px]'} animate-enter`}>
+      <div className={`relative z-10 w-full ${wide ? 'max-w-[560px]' : 'max-w-[440px]'} animate-enter`}>
         <Link to="/login" className="mb-8 flex items-center justify-center gap-3 text-slate-900 no-underline">
           <span className="brand-mark flex size-10 items-center justify-center rounded-[13px] text-white shadow-lg shadow-orange-900/15">
             <Command size={21} strokeWidth={2.4} aria-hidden="true" />

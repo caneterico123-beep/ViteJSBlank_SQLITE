@@ -66,7 +66,7 @@ function ProfilePage() {
           <InputField id="profile-name" label="Full name" value={name} onChange={(event) => setName(event.target.value)} autoComplete="name" icon={UserRound} error={errors.name} />
           <InputField id="profile-email" label="Email address" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" inputMode="email" icon={Mail} error={errors.email} />
           <div className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-600">
-            Account role: <span className="font-semibold capitalize text-slate-800">{user.role}</span>. Role changes require a trusted server-side administrator.
+            Business role: <span className="font-semibold capitalize text-slate-800">{user.role.replaceAll('_', ' ')}</span>. Role changes are managed by a business owner.
           </div>
           {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">{error}</p>}
           {message && <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800" role="status">{message}</p>}

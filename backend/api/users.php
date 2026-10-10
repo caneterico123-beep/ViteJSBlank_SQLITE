@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_method('GET');
 $pdo = database_connection();
-require_admin($pdo);
+$user = require_admin($pdo);
 
 $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['default' => 1, 'min_range' => 1]]) ?: 1;
 $perPage = filter_input(INPUT_GET, 'per_page', FILTER_VALIDATE_INT, ['options' => ['default' => 10, 'min_range' => 1, 'max_range' => 100]]) ?: 10;
@@ -14,24 +14,32 @@ if (!is_string($searchInput) || mb_strlen($searchInput, 'UTF-8') > 100) {
 $search = trim($searchInput);
 $escapedSearch = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $search);
 $pattern = '%' . $escapedSearch . '%';
-$where = $search === '' ? '' : "WHERE name LIKE :name ESCAPE '!' OR email LIKE :email ESCAPE '!'";
+$where = $search === '' ? '' : "AND (users.name LIKE :name ESCAPE '!' OR users.email LIKE :email ESCAPE '!')";
 
 if ($search === '') {
-    $count = $pdo->query('SELECT COUNT(*) FROM users')->fetchColumn();
-    $query = $pdo->prepare(
-        "SELECT id, name, email, role, created_at, last_login_at,
-            CASE WHEN last_login_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END AS is_active
-         FROM users ORDER BY id DESC LIMIT :limit OFFSET :offset",
-    );
-} else {
-    $countQuery = $pdo->prepare("SELECT COUNT(*) FROM users {$where}");
-    $countQuery->execute(['name' => $pattern, 'email' => $pattern]);
+    $countQuery = $pdo->prepare('SELECT COUNT(*) FROM business_members WHERE business_id = :business_id AND is_active = 1');
+    $countQuery->execute(['business_id' => $user['business_id']]);
     $count = $countQuery->fetchColumn();
     $query = $pdo->prepare(
-        "SELECT id, name, email, role, created_at, last_login_at,
-            CASE WHEN last_login_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END AS is_active
-         FROM users {$where} ORDER BY id DESC LIMIT :limit OFFSET :offset",
+        "SELECT users.id, users.name, users.email, business_members.role, users.created_at, users.last_login_at,
+            CASE WHEN users.last_login_at >= datetime('now', '-30 days') THEN 1 ELSE 0 END AS is_active
+         FROM business_members JOIN users ON users.id = business_members.user_id
+         WHERE business_members.business_id = :business_id AND business_members.is_active = 1
+         ORDER BY users.id DESC LIMIT :limit OFFSET :offset",
     );
+    $query->bindValue(':business_id', $user['business_id'], PDO::PARAM_INT);
+} else {
+    $countQuery = $pdo->prepare("SELECT COUNT(*) FROM business_members JOIN users ON users.id = business_members.user_id WHERE business_members.business_id = :business_id AND business_members.is_active = 1 {$where}");
+    $countQuery->execute(['business_id' => $user['business_id'], 'name' => $pattern, 'email' => $pattern]);
+    $count = $countQuery->fetchColumn();
+    $query = $pdo->prepare(
+        "SELECT users.id, users.name, users.email, business_members.role, users.created_at, users.last_login_at,
+            1 AS is_active
+         FROM business_members JOIN users ON users.id = business_members.user_id
+         WHERE business_members.business_id = :business_id AND business_members.is_active = 1 {$where}
+         ORDER BY users.id DESC LIMIT :limit OFFSET :offset",
+    );
+    $query->bindValue(':business_id', $user['business_id'], PDO::PARAM_INT);
     $query->bindValue(':name', $pattern, PDO::PARAM_STR);
     $query->bindValue(':email', $pattern, PDO::PARAM_STR);
 }

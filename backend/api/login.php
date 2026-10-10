@@ -9,11 +9,13 @@ $input = request_json();
 
 $emailInput = $input['email'] ?? null;
 $passwordInput = $input['password'] ?? null;
-$email = is_string($emailInput) ? strtolower(trim($emailInput)) : '';
+$identifier = is_string($emailInput) ? strtolower(trim($emailInput)) : '';
+$isEmail = filter_var($identifier, FILTER_VALIDATE_EMAIL) !== false && strlen($identifier) <= 254;
+$isUsername = preg_match('/^[a-zA-Z0-9_.-]{3,32}$/', $identifier) === 1;
 $password = is_string($passwordInput) ? $passwordInput : '';
 $errors = [];
-if (!is_string($emailInput) || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254) {
-    $errors['email'] = 'Enter a valid email address.';
+if (!is_string($emailInput) || (!$isEmail && !$isUsername)) {
+    $errors['email'] = 'Enter a valid email address or username.';
 }
 if (!is_string($passwordInput) || $password === '' || strlen($password) > 72) {
     $errors['password'] = 'Enter your password.';
@@ -22,8 +24,12 @@ if ($errors !== []) {
     json_response(422, ['message' => 'Please correct the highlighted fields.', 'errors' => $errors]);
 }
 
-$query = $pdo->prepare('SELECT id, name, email, password, role, created_at FROM users WHERE email = :email');
-$query->execute(['email' => $email]);
+$lookupColumn = $isEmail ? 'email' : 'username';
+$query = $pdo->prepare(
+    "SELECT id, name, email, password, role, created_at
+     FROM users WHERE {$lookupColumn} = :identifier COLLATE NOCASE LIMIT 1",
+);
+$query->execute(['identifier' => $identifier]);
 $record = $query->fetch();
 
 if ($record === false || !password_verify($password, $record['password'])) {
@@ -47,18 +53,21 @@ $lastLogin->execute(['id' => $record['id']]);
 $_SESSION['user_id'] = (int) $record['id'];
 $_SESSION['last_activity'] = $now;
 $_SESSION['auth_expires_at'] = $now + $sessionLifetime;
+$membership = $pdo->prepare('SELECT business_id FROM business_members WHERE user_id = :user_id AND is_active = 1 ORDER BY id LIMIT 1');
+$membership->execute(['user_id' => (int) $record['id']]);
+$businessId = $membership->fetchColumn();
+if ($businessId === false) {
+    unset($_SESSION['user_id'], $_SESSION['last_activity'], $_SESSION['auth_expires_at']);
+    json_response(403, ['message' => 'No active business membership is available. Contact your administrator.']);
+}
+$_SESSION['business_id'] = (int) $businessId;
+unset($_SERVER['HTTP_X_BUSINESS_ID']);
+$user = require_authenticated_user($pdo);
 $csrfToken = new_csrf_token();
 refresh_session_cookie($rememberMe ? $now + $sessionLifetime : 0);
 
-unset($record['password']);
 json_response(200, [
     'message' => 'Signed in successfully.',
-    'user' => [
-        'id' => (int) $record['id'],
-        'name' => $record['name'],
-        'email' => $record['email'],
-        'role' => $record['role'],
-        'created_at' => $record['created_at'],
-    ],
+    'user' => $user,
     'csrfToken' => $csrfToken,
 ]);

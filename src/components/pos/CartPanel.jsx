@@ -3,7 +3,7 @@ import { ArrowRight, ShoppingBag, Trash2, X } from 'lucide-react'
 import CartItem from './CartItem.jsx'
 import { formatMoney } from '../../utils/money.js'
 
-function CartPanel({ cart, currency, mobileOpen, onClose, onQuantityChange, onRemove, onClear, onCheckout, onHistory }) {
+function CartPanel({ cart, currency, mobileOpen, onClose, onQuantityChange, onRemove, onClear, onCheckout, onHistory, canCheckout = true }) {
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.price_cents * item.quantity, 0), [cart])
   const quantity = cart.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -42,7 +42,7 @@ function CartPanel({ cart, currency, mobileOpen, onClose, onQuantityChange, onRe
             <span className="font-medium text-slate-500">Subtotal</span>
             <span className="font-bold tabular-nums text-slate-900">{formatMoney(subtotal, currency)}</span>
           </div>
-          <button type="button" disabled={cart.length === 0} onClick={onCheckout} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300">
+          <button type="button" disabled={cart.length === 0 || !canCheckout} onClick={onCheckout} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-orange-600 px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-orange-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-700 disabled:cursor-not-allowed disabled:bg-slate-300">
             Checkout <ArrowRight size={17} aria-hidden="true" />
           </button>
           <button type="button" onClick={onHistory} className="mt-2 min-h-11 w-full rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-800">View sales history</button>

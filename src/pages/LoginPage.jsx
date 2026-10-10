@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Mail } from 'lucide-react'
+import { UserRound } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import AuthLayout from '../components/AuthLayout.jsx'
 import InputField from '../components/InputField.jsx'
@@ -7,7 +7,7 @@ import LoadingButton from '../components/LoadingButton.jsx'
 import PasswordInput from '../components/PasswordInput.jsx'
 import { useAuth } from '../contexts/useAuth.js'
 import { login } from '../services/api.js'
-import { isValidEmail } from '../utils/validation.js'
+import { isValidLoginIdentifier } from '../utils/validation.js'
 
 function LoginPage() {
   const [email, setEmail] = useState('')
@@ -21,8 +21,8 @@ function LoginPage() {
 
   function validate() {
     const nextErrors = {}
-    if (!email.trim()) nextErrors.email = 'Enter your email address.'
-    else if (!isValidEmail(email)) nextErrors.email = 'Enter a valid email address.'
+    if (!email.trim()) nextErrors.email = 'Enter your email address or username.'
+    else if (!isValidLoginIdentifier(email)) nextErrors.email = 'Enter a valid email address or username.'
     if (!password) nextErrors.password = 'Enter your password.'
     return nextErrors
   }
@@ -63,14 +63,13 @@ function LoginPage() {
         <div className="space-y-4">
           <InputField
             id="login-email"
-            label="Email address"
-            type="email"
+            label="Email or username"
+            type="text"
             value={email}
             onChange={(event) => clearFieldError('email', event.target.value, setEmail)}
-            placeholder="you@company.com"
-            autoComplete="email"
-            inputMode="email"
-            icon={Mail}
+            placeholder="you@company.com or admin"
+            autoComplete="username"
+            icon={UserRound}
             error={errors.email}
           />
           <PasswordInput

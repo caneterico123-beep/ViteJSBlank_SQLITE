@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getCsrfToken, getCurrentUser, logout as apiLogout } from '../services/api.js'
+import { getCsrfToken, getCurrentUser, logout as apiLogout, switchBusiness as apiSwitchBusiness } from '../services/api.js'
 import { AuthContext } from './AuthContextValue.js'
 
 export function AuthProvider({ children }) {
@@ -34,8 +34,13 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  async function switchBusiness(businessId) {
+    const result = await apiSwitchBusiness(businessId)
+    setUser(result.user)
+  }
+
   return (
-    <AuthContext.Provider value={{ user, setUser, isLoading, authError, signOut }}>
+    <AuthContext.Provider value={{ user, setUser, isLoading, authError, signOut, switchBusiness }}>
       {children}
     </AuthContext.Provider>
   )

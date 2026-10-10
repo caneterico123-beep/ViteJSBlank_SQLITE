@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test:api": "php backend/tests/api_test.php"
+    "test:api": "php backend/tests/api_test.php",
+    "test:pos": "php backend/tests/pos_test.php",
+    "test:tenant-migration": "php backend/tests/tenant_migration_test.php"
   },
   "dependencies": {
     "lucide-react": "^1.53.0",

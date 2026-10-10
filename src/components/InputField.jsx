@@ -18,7 +18,7 @@ function InputField({
         {label}
       </label>
       <div className={`field-shell flex h-[48px] items-center gap-3 rounded-[9px] border bg-slate-50/70 px-3.5 ${error ? 'border-rose-300' : 'border-slate-200'}`}>
-        <Icon size={17} className="shrink-0 text-slate-400" aria-hidden="true" />
+        {Icon && <Icon size={17} className="shrink-0 text-slate-400" aria-hidden="true" />}
         <input
           id={id}
           name={id}

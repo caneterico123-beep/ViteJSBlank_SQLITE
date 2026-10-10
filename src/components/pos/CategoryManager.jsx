@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Plus, X } from 'lucide-react'
-import { createCategory, deactivateCategory, getCategories, updateCategory } from '../../services/api.js'
+import { createCategory, deactivateCategory, getCategories, restoreCategory, updateCategory } from '../../services/api.js'
 
 function CategoryManager({ onClose, onChanged }) {
   const [categories, setCategories] = useState([])
@@ -11,23 +11,23 @@ function CategoryManager({ onClose, onChanged }) {
   const [message, setMessage] = useState('')
   const [busyId, setBusyId] = useState(null)
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setIsLoading(true)
     try {
       const result = await getCategories({ includeInactive: true })
       setCategories(result.categories)
       setNames(Object.fromEntries(result.categories.map((category) => [category.id, category.name])))
-      onChanged()
     } catch (loadError) {
       setError(loadError.message || 'Could not load categories.')
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
-    refresh()
-  }, [])
+    const timer = window.setTimeout(() => { refresh() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [refresh])
 
   async function handleCreate(event) {
     event.preventDefault()
@@ -38,6 +38,7 @@ function CategoryManager({ onClose, onChanged }) {
       setNewName('')
       setMessage('Category created.')
       await refresh()
+      onChanged()
     } catch (createError) {
       setError(createError.message || 'Could not create category.')
     }
@@ -51,6 +52,7 @@ function CategoryManager({ onClose, onChanged }) {
       await updateCategory(category.id, names[category.id].trim())
       setMessage('Category updated.')
       await refresh()
+      onChanged()
     } catch (saveError) {
       setError(saveError.message || 'Could not update category.')
     } finally {
@@ -67,8 +69,25 @@ function CategoryManager({ onClose, onChanged }) {
       await deactivateCategory(category.id)
       setMessage('Category deactivated.')
       await refresh()
+      onChanged()
     } catch (deactivateError) {
       setError(deactivateError.message || 'Could not deactivate category.')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function handleReactivate(category) {
+    setBusyId(category.id)
+    setError('')
+    setMessage('')
+    try {
+      await restoreCategory(category.id)
+      setMessage('Category reactivated.')
+      await refresh()
+      onChanged()
+    } catch (restoreError) {
+      setError(restoreError.message || 'Could not reactivate category.')
     } finally {
       setBusyId(null)
     }
@@ -90,9 +109,14 @@ function CategoryManager({ onClose, onChanged }) {
         <div className="mt-5 space-y-2">
           {isLoading ? <p className="py-5 text-center text-sm text-slate-500" role="status">Loading categories...</p> : categories.length === 0 ? <p className="py-5 text-center text-sm text-slate-500">No categories yet.</p> : categories.map((category) => (
             <div key={category.id} className="flex items-center gap-2 rounded-lg border border-slate-100 p-2">
-              <input value={names[category.id] ?? category.name} disabled={!category.is_active} onChange={(event) => setNames((current) => ({ ...current, [category.id]: event.target.value }))} aria-label={`Category ${category.name}`} className="h-11 min-w-0 flex-1 rounded-md px-2 text-sm outline-none focus:bg-slate-50 disabled:text-slate-400" />
-              <button type="button" disabled={!category.is_active || busyId === category.id} onClick={() => handleSave(category)} className="min-h-11 rounded-md px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40">Save</button>
-              {category.is_active ? <button type="button" disabled={busyId === category.id} onClick={() => handleDeactivate(category)} className="min-h-11 rounded-md px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-40">Deactivate</button> : <span className="px-2 text-[10px] font-semibold text-slate-400">Inactive</span>}
+              <div className="min-w-0 flex-1">
+                <input value={names[category.id] ?? category.name} disabled={!category.is_active} onChange={(event) => setNames((current) => ({ ...current, [category.id]: event.target.value }))} aria-label={`Category ${category.name}`} className="h-11 w-full min-w-0 rounded-md px-2 text-sm outline-none focus:bg-slate-50 disabled:text-slate-400" />
+                <p className="px-2 text-[10px] text-slate-400">{category.product_count} products</p>
+              </div>
+              {category.is_active ? <>
+                <button type="button" disabled={busyId === category.id} onClick={() => handleSave(category)} className="min-h-11 rounded-md px-3 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-40">Save</button>
+                <button type="button" disabled={busyId === category.id} onClick={() => handleDeactivate(category)} className="min-h-11 rounded-md px-3 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-40">Deactivate</button>
+              </> : <button type="button" disabled={busyId === category.id} onClick={() => handleReactivate(category)} className="min-h-11 rounded-md px-3 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40">Reactivate</button>}
             </div>
           ))}
         </div>

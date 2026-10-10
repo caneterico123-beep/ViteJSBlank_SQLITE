@@ -1,6 +1,8 @@
 import {
   LayoutDashboard,
+  Boxes,
   LogOut,
+  PackageSearch,
   ReceiptText,
   Settings,
   ShieldUser,
@@ -8,19 +10,31 @@ import {
   UserRound,
   X,
 } from 'lucide-react'
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 
 const baseLink = 'group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors'
 
-function Sidebar({ user, open, onClose, onLogout, isLoggingOut }) {
+function Sidebar({ user, open, onClose, onLogout, isLoggingOut, onSwitchBusiness }) {
+  const [switchError, setSwitchError] = useState('')
+  const isAdministrator = ['owner', 'admin'].includes(user.role)
+  const supportsPos = ['retail', 'grocery', 'pharmacy', 'bakery', 'restaurant', 'computer_store', 'coffee_shop'].includes(user.business?.industry)
   const links = [
-    { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
-    ...(['cashier', 'admin'].includes(user.role) ? [
-      { to: '/pos', label: 'Point of Sale', icon: ShoppingCart, end: true },
-      { to: '/pos/transactions', label: 'Sales history', icon: ReceiptText },
+    { to: user.business?.industry === 'retail' ? '/retail/dashboard' : user.business?.industry === 'pharmacy' ? '/pharmacy/dashboard' : '/dashboard', label: user.business?.industry === 'retail' ? 'Retail dashboard' : user.business?.industry === 'pharmacy' ? 'Pharmacy dashboard' : 'Dashboard', icon: LayoutDashboard, end: true },
+    ...(supportsPos && ['cashier', 'owner', 'admin', 'manager', 'pharmacist'].includes(user.role) ? [
+      { to: user.business?.industry === 'retail' ? '/retail/pos' : user.business?.industry === 'pharmacy' ? '/pharmacy/pos' : '/pos', label: 'Point of Sale', icon: ShoppingCart, end: true },
+      { to: user.business?.industry === 'retail' ? '/retail/transactions' : '/pos/transactions', label: 'Sales history', icon: ReceiptText },
     ] : []),
+    ...(['owner', 'admin', 'manager', 'inventory_staff', 'pharmacist'].includes(user.role) ? [{
+      to: user.business?.industry === 'pharmacy' ? '/pharmacy/medicines' : user.role === 'inventory_staff' ? '/dashboard/inventory/stock' : '/dashboard/inventory/products',
+      label: user.business?.industry === 'pharmacy' ? 'Medicines' : 'Inventory',
+      icon: PackageSearch,
+    }] : []),
+    ...(user.business?.industry === 'pharmacy' && ['owner', 'admin', 'manager', 'pharmacist', 'inventory_staff'].includes(user.role)
+      ? [{ to: '/pharmacy/batches', label: 'Medicine batches', icon: Boxes }]
+      : []),
     { to: '/dashboard/profile', label: 'My Profile', icon: UserRound },
-    ...(user.role === 'admin' ? [{ to: '/dashboard/users', label: 'Users', icon: ShieldUser }] : []),
+    ...(isAdministrator ? [{ to: '/dashboard/users', label: 'Users', icon: ShieldUser }] : []),
     { to: '/dashboard/settings', label: 'Settings', icon: Settings },
   ]
 
@@ -42,6 +56,27 @@ function Sidebar({ user, open, onClose, onLogout, isLoggingOut }) {
 
         <div className="px-4 pt-6">
           <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[1px] text-slate-400">Workspace</p>
+          {user.businesses?.length > 1 && (
+            <div className="mb-3 px-2">
+              <label htmlFor="business-switcher" className="sr-only">Select business workspace</label>
+              <select
+                id="business-switcher"
+                value={user.business_id}
+                onChange={async (event) => {
+                  setSwitchError('')
+                  try {
+                    await onSwitchBusiness(Number(event.target.value))
+                  } catch (error) {
+                    setSwitchError(error.message || 'Could not switch business workspace.')
+                  }
+                }}
+                className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-2 text-xs font-semibold text-slate-700"
+              >
+                {user.businesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+              </select>
+              {switchError && <p className="mt-1 text-xs text-rose-700" role="alert">{switchError}</p>}
+            </div>
+          )}
           <nav aria-label="Main navigation" className="space-y-1">
             {links.map(({ to, label, icon: Icon, end }) => (
               <NavLink
@@ -65,7 +100,7 @@ function Sidebar({ user, open, onClose, onLogout, isLoggingOut }) {
             </span>
             <div className="min-w-0">
               <p className="truncate text-xs font-semibold text-slate-800">{user.name}</p>
-              <p className="truncate text-[11px] text-slate-500">{user.role === 'admin' ? 'Administrator' : user.role === 'cashier' ? 'Cashier' : 'Member'}</p>
+              <p className="truncate text-[11px] text-slate-500">{user.business?.name || 'Workspace'} · {user.role.replaceAll('_', ' ')}</p>
             </div>
           </div>
           <button type="button" onClick={onLogout} disabled={isLoggingOut} className={`${baseLink} w-full text-slate-500 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60`}>

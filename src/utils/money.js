@@ -6,9 +6,13 @@ export function formatMoney(cents, currency = 'USD') {
 }
 
 export function calculateTotals(subtotalCents, discountBps, taxBps) {
-  const discountCents = Math.floor((subtotalCents * discountBps + 5000) / 10000)
+  const roundedPercentage = (amount, basisPoints) => (
+    Math.floor(amount / 10000) * basisPoints
+    + Math.floor(((amount % 10000) * basisPoints + 5000) / 10000)
+  )
+  const discountCents = roundedPercentage(subtotalCents, discountBps)
   const taxableCents = subtotalCents - discountCents
-  const taxCents = Math.floor((taxableCents * taxBps + 5000) / 10000)
+  const taxCents = roundedPercentage(taxableCents, taxBps)
   return {
     subtotalCents,
     discountCents,

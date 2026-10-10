@@ -33,7 +33,5 @@ try {
     throw $error;
 }
 
-$query = $pdo->prepare('SELECT id, name, email, role, created_at FROM users WHERE id = :id');
-$query->execute(['id' => $user['id']]);
-$profile = $query->fetch();
+$profile = require_authenticated_user($pdo);
 json_response(200, ['message' => 'Profile updated.', 'profile' => $profile]);

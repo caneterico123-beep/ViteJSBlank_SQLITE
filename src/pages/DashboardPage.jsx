@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Activity, BadgeCheck, UserPlus, UsersRound } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Activity, AlertTriangle, BadgeCheck, Package, UserPlus, UsersRound } from 'lucide-react'
 import {
   Area,
   AreaChart,
@@ -12,25 +13,29 @@ import {
 import StatCard from '../components/StatCard.jsx'
 import UsersTable from '../components/UsersTable.jsx'
 import { useAuth } from '../contexts/useAuth.js'
-import { getDashboardStats, getRegistrationAnalytics, getUsers } from '../services/api.js'
+import { getDashboardStats, getInventorySummary, getRegistrationAnalytics, getUsers } from '../services/api.js'
+import { formatMoney } from '../utils/money.js'
 
 function DashboardPage() {
   const { user } = useAuth()
+  const isBusinessAdmin = ['owner', 'admin'].includes(user.role)
   const [stats, setStats] = useState(null)
+  const [inventorySummary, setInventorySummary] = useState(null)
   const [registrations, setRegistrations] = useState([])
   const [recentUsers, setRecentUsers] = useState([])
-  const [isLoading, setIsLoading] = useState(user.role === 'admin')
+  const [isLoading, setIsLoading] = useState(isBusinessAdmin)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (user.role !== 'admin') return undefined
+    if (!isBusinessAdmin) return undefined
     let active = true
-    Promise.all([getDashboardStats(), getRegistrationAnalytics(), getUsers({ page: 1, perPage: 5 })])
-      .then(([summary, analytics, directory]) => {
+    Promise.all([getDashboardStats(), getRegistrationAnalytics(), getUsers({ page: 1, perPage: 5 }), getInventorySummary()])
+      .then(([summary, analytics, directory, inventory]) => {
         if (!active) return
         setStats(summary.stats)
         setRegistrations(analytics.registrations)
         setRecentUsers(directory.users)
+        setInventorySummary(inventory.summary)
       })
       .catch((loadError) => {
         if (active) setError(loadError.message || 'Could not load dashboard data.')
@@ -41,7 +46,7 @@ function DashboardPage() {
     return () => {
       active = false
     }
-  }, [user.role])
+  }, [isBusinessAdmin])
 
   return (
     <div className="space-y-6">
@@ -49,14 +54,14 @@ function DashboardPage() {
         <div>
           <p className="mb-1 text-xs font-bold uppercase tracking-[1px] text-orange-700">Overview</p>
           <h2 className="text-2xl font-bold text-slate-950">Welcome, {user.name}</h2>
-          <p className="mt-1 text-sm text-slate-500">{user.role === 'admin' ? 'Here is what is happening across your workspace.' : 'Your account and workspace at a glance.'}</p>
+          <p className="mt-1 text-sm text-slate-500">{isBusinessAdmin ? `Here is what is happening across ${user.business?.name || 'your workspace'}.` : 'Your account and workspace at a glance.'}</p>
         </div>
-        <p className="text-xs text-slate-500">{user.role === 'admin' ? 'Live data from your database' : 'Signed in as a member'}</p>
+        <p className="text-xs text-slate-500">{isBusinessAdmin ? 'Live data from your database' : 'Signed in as a member'}</p>
       </section>
 
       {error && <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800" role="alert">{error}</p>}
 
-      {user.role === 'admin' ? (
+      {isBusinessAdmin ? (
         <>
           {isLoading && !stats ? (
             <div className="rounded-xl border border-slate-200 bg-white px-5 py-8 text-sm text-slate-500" role="status">Loading dashboard statistics...</div>
@@ -67,6 +72,29 @@ function DashboardPage() {
               <StatCard label="New registrations" value={stats.newRegistrations.toLocaleString()} helper="Last 7 days" icon={UserPlus} tone="sky" />
               <StatCard label="Account status" value={stats.accountStatus} helper="Administrator account" icon={BadgeCheck} tone="slate" />
             </div>
+          )}
+
+          {inventorySummary && (
+            <section className="space-y-4">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-bold text-slate-900">Inventory overview</h2>
+                  <p className="mt-1 text-xs text-slate-500">Live product and stock values from SQLite.</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link to="/dashboard/inventory/products" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Products</Link>
+                  <Link to="/dashboard/inventory/stock" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Receive / adjust stock</Link>
+                  <Link to="/dashboard/inventory/history" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Stock history</Link>
+                  <Link to="/dashboard/inventory/suppliers" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Suppliers</Link>
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard label="Active products" value={inventorySummary.total_products.toLocaleString()} helper="Available products" icon={Package} tone="sky" />
+                <StatCard label="Low-stock products" value={inventorySummary.low_stock.toLocaleString()} helper="At or below reorder level" icon={AlertTriangle} tone="orange" />
+                <StatCard label="Out of stock" value={inventorySummary.out_of_stock.toLocaleString()} helper="Active products with zero stock" icon={AlertTriangle} tone="slate" />
+                <StatCard label="Inventory value" value={formatMoney(inventorySummary.inventory_value_cents, user.business?.currency || 'PHP')} helper="Current quantity at cost" icon={BadgeCheck} tone="emerald" />
+              </div>
+            </section>
           )}
 
           <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">

@@ -6,15 +6,26 @@ import Topbar from './Topbar.jsx'
 
 const titles = {
   '/dashboard': 'Dashboard',
+  '/retail/dashboard': 'Retail dashboard',
   '/dashboard/profile': 'My Profile',
   '/dashboard/users': 'Users',
+  '/dashboard/inventory/products': 'Inventory',
+  '/dashboard/inventory/stock': 'Stock operations',
+  '/dashboard/inventory/suppliers': 'Suppliers',
+  '/dashboard/inventory/history': 'Stock history',
   '/dashboard/settings': 'Settings',
   '/pos': 'Point of Sale',
   '/pos/transactions': 'Sales history',
+  '/retail/pos': 'Point of Sale',
+  '/retail/transactions': 'Sales history',
+  '/pharmacy/dashboard': 'Pharmacy dashboard',
+  '/pharmacy/medicines': 'Medicine catalog',
+  '/pharmacy/batches': 'Medicine batches',
+  '/pharmacy/pos': 'Pharmacy counter POS',
 }
 
 function DashboardLayout() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, switchBusiness } = useAuth()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -36,11 +47,11 @@ function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f8f8] text-slate-900 lg:flex">
-      <Sidebar user={user} open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} onLogout={handleLogout} isLoggingOut={isLoggingOut} />
+    <div key={user.business_id} className="min-h-screen bg-[#f6f8f8] text-slate-900 lg:flex">
+      <Sidebar user={user} onSwitchBusiness={switchBusiness} open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} onLogout={handleLogout} isLoggingOut={isLoggingOut} />
       <div className="min-w-0 flex-1">
         <Topbar
-          title={titles[location.pathname] || (location.pathname.startsWith('/pos/transactions/') ? 'Transaction details' : 'Dashboard')}
+          title={titles[location.pathname] || (location.pathname.startsWith('/pos/transactions/') || location.pathname.startsWith('/retail/transactions/') ? 'Transaction details' : 'Dashboard')}
           user={user}
           search={search}
           onSearch={setSearch}

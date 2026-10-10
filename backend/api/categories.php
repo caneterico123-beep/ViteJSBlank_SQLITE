@@ -3,14 +3,20 @@ declare(strict_types=1);
 
 require_method('GET');
 $pdo = database_connection();
-require_pos_operator($pdo);
+$user = require_role($pdo, ['owner', 'admin', 'manager', 'inventory_staff', 'cashier']);
 $includeInactive = ($_GET['include_inactive'] ?? '') === '1';
-$query = $includeInactive
-    ? $pdo->query('SELECT id, name, is_active, created_at FROM categories ORDER BY name COLLATE NOCASE')
-    : $pdo->query('SELECT id, name, is_active, created_at FROM categories WHERE is_active = 1 ORDER BY name COLLATE NOCASE');
+$query = $pdo->prepare(
+    'SELECT categories.id, categories.name, categories.description, categories.is_active, categories.created_at,
+            COUNT(products.id) AS product_count
+     FROM categories LEFT JOIN products ON products.category_id = categories.id AND products.business_id = categories.business_id
+     WHERE categories.business_id = :business_id ' . ($includeInactive ? '' : 'AND categories.is_active = 1 ') .
+    'GROUP BY categories.id ORDER BY categories.name COLLATE NOCASE',
+);
+$query->execute(['business_id' => $user['business_id']]);
 $categories = $query->fetchAll();
 foreach ($categories as &$category) {
     $category['id'] = (int) $category['id'];
+    $category['product_count'] = (int) $category['product_count'];
     $category['is_active'] = (bool) $category['is_active'];
 }
 unset($category);

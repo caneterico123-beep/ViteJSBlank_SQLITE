@@ -2,3 +2,7 @@
   "email": "john@example.com",
   "password": "SecurePass123"
 }
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}

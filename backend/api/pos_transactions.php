@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_method('GET');
 $pdo = database_connection();
-$user = require_pos_operator($pdo);
+$user = require_pos_enabled_user($pdo);
 $page = filter_input(INPUT_GET, 'page', FILTER_VALIDATE_INT, ['options' => ['default' => 1, 'min_range' => 1]]) ?: 1;
 $perPage = filter_input(INPUT_GET, 'per_page', FILTER_VALIDATE_INT, ['options' => ['default' => 20, 'min_range' => 1, 'max_range' => 100]]) ?: 20;
 $search = $_GET['search'] ?? '';
@@ -20,9 +20,9 @@ foreach (['date_from' => $dateFrom, 'date_to' => $dateTo] as $key => $date) {
 if ($status !== '' && !in_array($status, ['paid', 'pending', 'voided', 'cancelled'], true)) json_response(422, ['message' => 'Choose a valid payment status.']);
 if ($method !== '' && !in_array($method, ['cash', 'card', 'ewallet'], true)) json_response(422, ['message' => 'Choose a valid payment method.']);
 
-$where = [];
-$params = [];
-if ($user['role'] !== 'admin') {
+$where = ['sales.business_id = :business_id'];
+$params = ['business_id' => $user['business_id']];
+if (!in_array($user['role'], ['owner', 'admin', 'manager'], true)) {
     $where[] = 'sales.cashier_id = :cashier_id';
     $params['cashier_id'] = $user['id'];
 }
